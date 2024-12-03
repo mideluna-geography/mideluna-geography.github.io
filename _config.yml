@@ -2,4 +2,4 @@ title: Linear and multilinear regression models to predict the intensity of the 
 description: A supervised machine learning technique is used to gauge the predictability of ASL intensity when the phase and strength of additional Southern Hemisphere (SH) modes of variability (MOVs) is known. 
 logo: /assets/IMG/ASL_study_area_with_overall_avg.png
 show_downloads: true
-theme: jekyll-theme-minimal
+theme: jekyll-theme-cayman
