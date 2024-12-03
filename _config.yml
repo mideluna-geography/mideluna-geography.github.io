@@ -1,5 +1,5 @@
-title: Michelle De Luna
-description: An AOS 204 final project dedicated to exploring the Amundsen Sea Low (ASL) and its relation to additional Southern Hemisphere modes of variability (MOVs). 
+title: Linear and multilinear regression models to predict the intensity of the Amundsen Sea Low (ASL) in West Antarctica
+description: A supervised machine learning technique is used to gauge the predictability of ASL intensity when the phase and strength of additional Southern Hemisphere (SH) modes of variability (MOVs) is known. 
 logo: /assets/IMG/ASL_study_area_with_overall_avg.png
 show_downloads: true
 theme: jekyll-theme-minimal
