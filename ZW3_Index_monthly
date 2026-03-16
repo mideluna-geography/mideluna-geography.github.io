@@ -1,0 +1,83 @@
+#Monthly ZW3 index calculation for the period 1979-2025 (using BAMS climatology from 1990-2020)
+
+import numpy as np
+import netCDF4 as nc
+from netCDF4 import Dataset
+import pandas as pd
+import matplotlib.pylab as plt
+
+###1. Constants
+
+start_yr = 1979 
+end_yr = 2025
+total_yr  = (end_yr - start_yr) + 1
+total_mos  = 558
+nyrm  = total_mos - 1
+
+lat_size = 361
+lon_size = 1440
+n_mos = 12
+ntime = total_mos
+p_lev = 500 
+
+###2.Reading ERA data file
+
+file = nc.Dataset('your_directory/data_stream-moda_stepType-avgua.nc')
+z_name = 'z'
+file_time = file.variables['valid_time'][:]
+lat = file.variables['latitude'][:] #only parallels south of equator are contained in file
+lon = file.variables['longitude'][:]
+lev = file.variables['pressure_level'][:]
+
+#Find index for 500 hPa
+lev_idx = np.abs(lev - p_lev).argmin()
+
+#Read geopotential (z) at 500 hPa
+z_data = file.variables[z_name][:, lev_idx, :, :] 
+
+#Convert from geopotential (m^2/s^2) to height (m)
+era_z = z_data / 9.80665 
+
+###3. Computing zonal anomalies
+
+Zdata = era_z - np.mean(era_z, axis=2, keepdims=True) 
+
+###4. Preallocating climatology arrays
+
+Zbar = np.zeros((12, lat_size, lon_size))
+sgma = np.zeros((12, lat_size, lon_size))
+Zstar = np.zeros((total_mos, lat_size, lon_size))
+
+###5. Monthly climatology and standard deviation
+
+for mo in range(12):
+    month_data = Zdata[372+mo:743:12, :, :]  #every 12th step starting from month `mo,' which marks start of climatological period
+    Zbar[mo, :, :] = np.mean(month_data, axis=0)
+    sgma[mo, :, :] = np.std(month_data, axis=0)
+    
+###6. Standardized anomalies (Z*)
+
+for i in range(ntime):
+    mo = i % 12
+    og_index_val = i + 240 #this added value depends on the start of your desired time period, not climatology
+    Zstar[i, :, :] = (Zdata[og_index_val, :, :] - Zbar[mo, :, :]) / (sgma[mo, :, :] + 1.0)
+
+###7. Compute WV indices (specific points)
+
+def nearest_idx(array, value):
+    return np.abs(array - value).argmin()
+
+lat_idx = nearest_idx(lat, -49.0)
+lon_idx_76W = nearest_idx(lon, -76.0)
+lon_idx_50E = nearest_idx(lon, 50.0)
+lon_idx_166 = nearest_idx(lon, 166.0)
+print(lat_idx, lon_idx_76W)
+
+wvindex76W = Zstar[:, lat_idx, lon_idx_76W]
+wvindex50E = Zstar[:, lat_idx, lon_idx_50E]
+wvindex166 = Zstar[:, lat_idx, lon_idx_166]
+
+# Mean index
+zw3za = (wvindex76W + wvindex50E + wvindex166) / 3
+
+print('Index created successfully!')
