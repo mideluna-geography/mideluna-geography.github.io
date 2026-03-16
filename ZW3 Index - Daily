@@ -1,0 +1,68 @@
+#Daily ZW3 index for the period 1979-2025 (using BAMS climatology for study period 1990-2020)
+
+import xarray as xr
+import numpy as np
+import pandas as pd
+import glob
+
+###1. Open ERA5 reanalysis files via directory
+
+dirz = "/Users/your_username/yearly_files_folder/"
+files = sorted(glob.glob(dirz + "yearly_file_*.nc"))
+print(f"Found {len(files)} files") 
+
+ds = xr.open_mfdataset(files,combine="by_coords",chunks={"valid_time": 30})
+print(ds.coords)
+
+z_name = 'z' #variable of interest
+z_lev = 500.0 #geopotential height of interest
+z = ds[z_name].sel(pressure_level=z_lev) / 9.80665
+z = z.astype("float32") 
+
+###2. Remove leap days (Feb. 29)
+
+z = z.sel(valid_time=~((z.valid_time.dt.month == 2) & (z.valid_time.dt.day == 29)))
+
+#3. Calculate zonal anomaly
+
+Zdata = z - z.mean(dim="longitude")
+
+###4. Variables for climatology calculation
+
+clim_period = Zdata.sel(valid_time=slice("1990-01-01", "2020-12-31")) #subsetting data based on climatological period, shape = (14235,361,1440)
+
+clim = clim_period.groupby("valid_time.dayofyear")
+
+Zbar = clim.mean(dim="valid_time") #mean of grouped data from 1979-2020 #this results in variable with size (366,361,1440)
+sgma = clim.std(dim="valid_time") #standard deviation of grouped data from 1979-2020
+
+###5. Finding the nearest cell for the latitude and longitude values representing each of the three nodes over the SH
+
+lat0 = -49.0 
+lons = [-76.0, 50.0, 166.0] 
+
+z_pt = Zdata.sel(latitude=lat0,longitude=lons,method="nearest")
+
+Zbar_pt = Zbar.sel(latitude=lat0,longitude=lons,method="nearest") 
+
+sgma_pt = sgma.sel(latitude=lat0,longitude=lons,method="nearest") 
+
+###6. Calculation of Zstar (individual point values) for each point, or ridge
+
+day = z_pt.valid_time.dt.dayofyear #day of year
+
+Zstar_pt = (z_pt - Zbar_pt.sel(dayofyear=day)) / (sgma_pt.sel(dayofyear=day) + 1.0) #if day of year is 366, no calculation occurs
+
+###7. Average values at three geographic points (represented by the 'longitude' dimension)
+
+from dask.diagnostics import ProgressBar
+
+with ProgressBar(): #to view progress + ensure code is running
+    zw3_daily = Zstar_pt.mean(dim='longitude')
+    
+###8. Exporting ZW3 indices from DataArray to numpy array
+    
+with ProgressBar():
+    zw3_daily_index = zw3_daily.to_numpy()
+
+print('Index created successfully!')
